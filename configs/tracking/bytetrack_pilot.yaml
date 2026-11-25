@@ -1,0 +1,35 @@
+schema_version: "1.0"
+execution_enabled: false
+sequence_id: vntraffic_001
+dataset_role: PILOT_DEV
+sequence_directory: data/Tracking363_working/sequences/vntraffic_001
+integration_snapshot: runs/project363/tracking/work_5_3_integration_snapshot.json
+detector:
+  backend: ultralytics
+  model_path: null
+  device: null
+  minimum_confidence: 0.1
+  class_names_source: checkpoint_metadata
+  allowed_class_names: [car, motorcycle, bus, truck]
+  preserve_original_class_ids: true
+  traffic_light_tracking_enabled: false
+  out_of_bounds_policy: error_no_silent_clipping
+tracker:
+  tracker_type: bytetrack
+  track_high_thresh: 0.25
+  track_low_thresh: 0.1
+  new_track_thresh: 0.25
+  track_buffer: 30
+  match_thresh: 0.8
+  fuse_score: true
+runtime:
+  fps: 30
+  frames_in_order: true
+  update_on_empty_detections: true
+  new_tracker_per_sequence: true
+  threshold_policy: untuned_starting_values_not_validated_on_pilot
+evaluation:
+  gt_semantic_class_status: PENDING
+  track_gap_interpolation: false
+  unbiased_benchmark_claim: false
+  final_benchmark_metrics_enabled: false

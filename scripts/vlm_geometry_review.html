@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="vi">
+<meta charset="utf-8">
+<title>VLM363 — Bổ sung geometry và thời gian</title>
+<style>
+body{font:16px system-ui;background:#181818;color:#eee;margin:24px}canvas,video{width:100%;max-width:1100px;height:auto}button,select,input,textarea{font:inherit;margin:5px;padding:6px}section{border-top:1px solid #777;padding:20px 0}a{color:#8df}label{display:block}.warning{color:#fd8}textarea{width:85%}
+</style>
+<h1>Bổ sung vạch dừng, đèn và khoảng vượt vạch</h1>
+<p class="warning">Nhãn QA đã lưu riêng. Trang này không tự xác định tọa độ hoặc thời gian, không sửa video/nhãn gốc. Xuất JSON vẫn cần kiểm tra trước khi nhập vào dự án.</p>
+<p>Chọn frame, chọn công cụ rồi bấm hai điểm: vạch dừng = hai đầu đoạn vạch; đèn = hai góc ROI đèn điều khiển đúng hướng xe. Mỗi mẫu lưu riêng, không sao chép geometry giữa hai hướng đi.</p>
+<p>Khoảng vượt vạch: frame cuối đầu xe còn trước vạch → frame đầu đầu xe đã vượt. Chỉ nhập khi quan sát được. Nếu xe không vượt trong clip hoặc bị che/mất khỏi khung, chọn trạng thái tương ứng; không tạo mốc giả. Frame nguồn bắt đầu từ 0, giây danh nghĩa = frame/FPS.</p>
+<button id="export">Xuất geometry_review.json</button><span id="status"></span>
+<main id="cases"></main>
+<script id="payload" type="application/json">__PAYLOAD__</script>
+<script>
+const payload = JSON.parse(document.getElementById('payload').textContent);
+const storageKey = 'vlm_geometry_' + payload.review_sha256;
+let reviews = {};
+try { reviews = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch (error) {}
+function element(tag, text, parent) {
+  const node = document.createElement(tag);
+  if (text !== null) node.textContent = text;
+  if (parent) parent.append(node);
+  return node;
+}
+function save() {
+  try { localStorage.setItem(storageKey, JSON.stringify(reviews)); document.getElementById('status').textContent = 'Đã lưu trong browser; cần export JSON.'; }
+  catch (error) { document.getElementById('status').textContent = 'Không lưu browser được; hãy export.'; }
+}
+for (const sample of payload.samples) {
+  const review = reviews[sample.sample_id] || {sample_id:sample.sample_id, source_sha256:sample.source_sha256,
+    stop_line:null, signal_roi:null, signal_controls_target:false, crossing_status:'PENDING',
+    crossing_frame_before:null, crossing_frame_after:null, signal_state_at_crossing:'unknown', notes:''};
+  reviews[sample.sample_id] = review;
+  const section = element('section', null, document.getElementById('cases'));
+  element('h2', sample.sample_id + ' — ' + sample.vehicle_type, section);
+  element('p', 'Nhãn đã duyệt: ' + sample.package_assessment + ' | nguồn ' + sample.survey_id + ' | FPS danh nghĩa ' + sample.nominal_fps, section);
+  const video = element('video', null, section);
+  video.controls = true; video.preload = 'none'; video.src = sample.clip_url;
+  const link = element('a', 'Mở clip bằng player nếu browser không phát được', section); link.href = sample.clip_url;
+  element('p', 'Clip bắt đầu ở frame nguồn ' + sample.media.start_frame_id + '. Frame cuối: ' + (sample.media.end_frame_exclusive - 1) + '. Muốn chốt chính xác, xem frame-by-frame trên nguồn hoặc frame map.', section);
+  const frameSelect = element('select', null, section);
+  for (const frame of sample.evidence) {
+    const option = element('option', 'Frame nguồn ' + frame.frame_id, frameSelect); option.value = String(frame.frame_id);
+  }
+  const tool = element('select', null, section);
+  for (const [value, title] of [['stop_line','Vẽ vạch dừng'],['signal_roi','Vẽ ROI đèn']]) {
+    const option = element('option', title, tool); option.value = value;
+  }
+  const clear = element('button', 'Xóa geometry của mẫu này', section);
+  const canvas = element('canvas', null, section);
+  canvas.width = sample.source_width; canvas.height = sample.source_height;
+  const context = canvas.getContext('2d');
+  let pending = null;
+  let currentImage = null;
+  function draw() {
+    context.clearRect(0,0,canvas.width,canvas.height);
+    if (currentImage) context.drawImage(currentImage,0,0);
+    const frame = sample.evidence.find(item => String(item.frame_id) === frameSelect.value);
+    context.lineWidth = 4; context.strokeStyle = '#0f0';
+    const [left,top,right,bottom] = frame.bbox_xyxy;
+    context.strokeRect(left,top,right-left,bottom-top);
+    if (review.stop_line) {
+      context.strokeStyle = '#ff0'; context.beginPath();
+      context.moveTo(...review.stop_line.points[0]); context.lineTo(...review.stop_line.points[1]); context.stroke();
+    }
+    if (review.signal_roi) {
+      context.strokeStyle = '#0ff'; const box = review.signal_roi.bbox_xyxy;
+      context.strokeRect(box[0],box[1],box[2]-box[0],box[3]-box[1]);
+    }
+  }
+  function load() {
+    pending = null;
+    const frame = sample.evidence.find(item => String(item.frame_id) === frameSelect.value);
+    const loaded = new Image();
+    loaded.onload = () => { if (String(frame.frame_id) === frameSelect.value) { currentImage = loaded; draw(); } };
+    loaded.src = frame.image_url;
+  }
+  frameSelect.onchange = load; tool.onchange = () => { pending = null; };
+  clear.onclick = () => { review.stop_line = null; review.signal_roi = null; pending = null; save(); draw(); };
+  canvas.onclick = event => {
+    const bounds = canvas.getBoundingClientRect();
+    const point = [Math.round((event.clientX-bounds.left)*canvas.width/bounds.width),Math.round((event.clientY-bounds.top)*canvas.height/bounds.height)];
+    if (!pending) { pending = point; return; }
+    const frame = Number(frameSelect.value);
+    if (tool.value === 'stop_line') {
+      if (point[0] === pending[0] && point[1] === pending[1]) return;
+      review.stop_line = {points:[pending,point], reference_frame_id:frame, coordinate_system:'native_source_pixels'};
+    } else {
+      const box = [Math.min(point[0],pending[0]),Math.min(point[1],pending[1]),Math.max(point[0],pending[0]),Math.max(point[1],pending[1])];
+      if (box[0] === box[2] || box[1] === box[3]) return;
+      review.signal_roi = {bbox_xyxy:box,reference_frame_id:frame,coordinate_system:'native_source_pixels'};
+    }
+    pending = null; save(); draw();
+  };
+  const mappingLabel = element('label', 'Đèn ROI này điều khiển đúng hướng xe: ', section);
+  const mapping = element('input', null, mappingLabel); mapping.type = 'checkbox'; mapping.checked = review.signal_controls_target;
+  mapping.onchange = () => { review.signal_controls_target = mapping.checked; save(); };
+  const crossing = element('select', null, section);
+  for (const value of ['PENDING','OBSERVED_CROSSING','NO_CROSSING_OBSERVED','NOT_OBSERVABLE']) {
+    const option = element('option', value, crossing); option.value = value;
+  }
+  crossing.value = review.crossing_status;
+  crossing.onchange = () => { review.crossing_status = crossing.value; save(); };
+  for (const [key,title] of [['crossing_frame_before','Frame cuối trước vạch'],['crossing_frame_after','Frame đầu đã vượt']]) {
+    const label = element('label', title, section); const input = element('input', null, label);
+    input.type = 'number'; input.step = '1'; input.min = sample.media.start_frame_id; input.max = sample.media.end_frame_exclusive-1;
+    input.value = review[key] ?? ''; input.oninput = () => { review[key] = input.value === '' ? null : Number(input.value); save(); };
+  }
+  const signal = element('select', null, section);
+  for (const value of ['unknown','red','green','yellow','off']) { const option = element('option', value, signal); option.value = value; }
+  signal.value = review.signal_state_at_crossing;
+  signal.onchange = () => { review.signal_state_at_crossing = signal.value; save(); };
+  const notes = element('textarea', null, section); notes.placeholder = 'Hướng xe, lý do thiếu bằng chứng, chu kỳ đèn / khoảng cần kiểm tra'; notes.value = review.notes;
+  notes.oninput = () => { review.notes = notes.value; save(); }; load();
+}
+document.getElementById('export').onclick = () => {
+  const validationErrors = [];
+  for (const sample of payload.samples) {
+    const review = reviews[sample.sample_id];
+    if (review.crossing_status === 'OBSERVED_CROSSING') {
+      const before = review.crossing_frame_before, after = review.crossing_frame_after;
+      if (!Number.isInteger(before) || !Number.isInteger(after) || before < sample.media.start_frame_id || after >= sample.media.end_frame_exclusive || before >= after) {
+        validationErrors.push({sample_id:sample.sample_id, field:'crossing_interval',
+          message:'Cần hai frame nguồn nguyên, trước < sau, trong khoảng ' + sample.media.start_frame_id + '–' + (sample.media.end_frame_exclusive-1)});
+      }
+    } else if (review.crossing_frame_before !== null || review.crossing_frame_after !== null) {
+      validationErrors.push({sample_id:sample.sample_id, field:'crossing_status',
+        message:'Có mốc vượt vạch nhưng trạng thái không phải OBSERVED_CROSSING'});
+    }
+    if (review.crossing_status === 'PENDING') validationErrors.push({sample_id:sample.sample_id,field:'crossing_status',message:'Chưa đánh giá crossing'});
+    if (!review.stop_line) validationErrors.push({sample_id:sample.sample_id,field:'stop_line',message:'Chưa vẽ vạch dừng'});
+    if (!review.signal_roi || !review.signal_controls_target) validationErrors.push({sample_id:sample.sample_id,field:'signal_mapping',message:'Chưa xác nhận ROI đèn điều khiển đúng hướng'});
+  }
+  save();
+  const result = {batch_id:payload.batch_id,review_sha256:payload.review_sha256,exported_at_utc:new Date().toISOString(),
+    status:validationErrors.length ? 'GEOMETRY_DRAFT_WITH_VALIDATION_ERRORS' : 'GEOMETRY_EXPORT_REQUIRES_VALIDATION',
+    validation_errors:validationErrors,is_ground_truth:false,timebase_verified:false,reviews:Object.values(reviews)};
+  const url = URL.createObjectURL(new Blob([JSON.stringify(result,null,2)],{type:'application/json'}));
+  const link = element('a', null, document.body); link.href = url; link.download = 'geometry_review.json'; link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url),1000);
+  document.getElementById('status').textContent = validationErrors.length
+    ? 'Đã xuất bản nháp, giữ nguyên dữ liệu. Còn ' + validationErrors.length + ' mục cần kiểm tra trong validation_errors.'
+    : 'Đã xuất JSON; cần kiểm tra trước khi nhập vào dự án.';
+};
+</script>
+</html>

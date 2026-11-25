@@ -1,0 +1,40 @@
+# Dữ liệu, kết quả chạy, trọng số: lớn và nhiều bộ không được phát hành lại. Xem README mục "Dữ liệu và trọng số".
+/data/**
+!/data/**/
+!/data/**/LABELING_RULES.md
+!/data/**/CHANGELOG.md
+/runs/**
+!/runs/**/
+!/runs/**/STATUS.md
+!/runs/**/PILOT_REPORT.md
+/weights/**
+!/weights/**/
+!/weights/**/STATUS.md
+/exports/
+*.pt
+*.pth
+*.onnx
+*.engine
+*.zip
+*.mp4
+
+# Bí mật: không bao giờ đưa lên
+client_secret_*.json
+kaggle.json
+*.env
+.mcp.json
+
+# Bài tập môn khác, công cụ và cache cục bộ
+/bai_ca_nhan_cnn_spark/
+/notebook/
+/.tools/
+/.claude/
+/.playwright-mcp/
+/.pytest_cache/
+__pycache__/
+*.pyc
+
+# Việc dọn dẹp một lần, ghi chú nghiên cứu trùng bản
+/apply_frozen_payload_cleanup.ps1
+/deep-research-report (2).md
+/Nghiên Cứu VLM Giao Thông(2).md

@@ -1,0 +1,15 @@
+task: detect
+mode: train
+model: D:/se363-bigdata/weights/checkpoint_epoch_0005.pt
+resume: true
+data: D:/se363-bigdata/config/vehicle_dataset.yaml
+epochs: 100
+device: 0
+batch: 4
+workers: 0
+cache: false
+patience: 0
+time: null
+save: true
+save_period: 5
+save_dir: D:/se363-bigdata/runs/local_training/vehicle_resume_epoch5_100_adamw_compatible

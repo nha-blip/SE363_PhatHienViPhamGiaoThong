@@ -1,0 +1,123 @@
+{
+ "schema_version": "scene_config.v1",
+ "scene_config_id": "aicc22:v2",
+ "camera_id": "aicc22",
+ "version": 2,
+ "status": "DRAFT",
+ "created_by": "project owner (scene_config_tool.py)",
+ "created_at_utc": "2026-11-15T03:01:30+00:00",
+ "reference_image": {
+  "path": "data/light_phase_eval_20261114/aicc22/frames/00000.jpg",
+  "sha256": "661c9be6ded320a9b11416467ca3a47d40e2e9020167a35f77d1633d3eb17c7b",
+  "width": 1280,
+  "height": 720
+ },
+ "coordinate_system": "pixels of the reference image",
+ "source_transform": null,
+ "signals": [
+  {
+   "signal_id": "aicc22:S1",
+   "roi_xyxy": [
+    1209.3,
+    126.0,
+    1239.0,
+    176.1
+   ],
+   "controls_approach_ids": [
+    "A1"
+   ],
+   "mapping_status": "CONFIRMED"
+  },
+  {
+   "signal_id": "aicc22:S2",
+   "roi_xyxy": [
+    965.6,
+    10.2,
+    985.1,
+    61.4
+   ],
+   "controls_approach_ids": [],
+   "mapping_status": "UNCONFIRMED"
+  },
+  {
+   "signal_id": "aicc22:S3",
+   "roi_xyxy": [
+    827.4,
+    2.0,
+    844.8,
+    68.6
+   ],
+   "controls_approach_ids": [],
+   "mapping_status": "UNCONFIRMED"
+  }
+ ],
+ "approaches": [
+  {
+   "approach_id": "A1",
+   "approach_roi": [
+    [
+     545.7,
+     134.0
+    ],
+    [
+     723.3,
+     151.8
+    ],
+    [
+     820.6,
+     266.9
+    ],
+    [
+     514.0,
+     241.1
+    ]
+   ],
+   "observation_roi": [
+    [
+     0,
+     0
+    ],
+    [
+     1280,
+     0
+    ],
+    [
+     1280,
+     720
+    ],
+    [
+     0,
+     720
+    ]
+   ],
+   "stop_line": [
+    [
+     514.0,
+     241.1
+    ],
+    [
+     1175.8,
+     308.6
+    ]
+   ],
+   "direction": [
+    -0.1861,
+    0.9825
+   ],
+   "direction_points": [
+    [
+     742.2,
+     237.1
+    ],
+    [
+     734.3,
+     278.8
+    ]
+   ]
+  }
+ ],
+ "activation": null,
+ "notes": [
+  "signal ROIs drawn by the project owner in light_roi_tool.py on 2026-11-14"
+ ]
+}

@@ -1,0 +1,40 @@
+{
+ "schema_version": "scene_config.v1",
+ "scene_config_id": "C042_survey:v1",
+ "camera_id": "C042_survey",
+ "version": 1,
+ "status": "DRAFT",
+ "created_by": "project owner (ROIs); converted by export_signal_rois_to_scene_configs.py",
+ "created_at_utc": "2026-11-15T01:58:19+00:00",
+ "reference_image": {
+  "path": "data/light_phase_eval_20261114/C042_survey/frames/00031.jpg",
+  "sha256": "e38aad917ab09fdf3a63d477e39bd789f3a3d6d3f6db53df11db778ae75b33a2",
+  "width": 900,
+  "height": 613
+ },
+ "coordinate_system": "pixels of the reference image",
+ "source_transform": {
+  "type": "scene_band_crop_of_phone_screen_recording",
+  "source": "D:\\se363-bigdata\\data\\iHanoi_capture\\city_survey_20261029\\C042_08-PTZ\\screen.mp4",
+  "note": "band detected per frame; timebase_verified=false"
+ },
+ "signals": [
+  {
+   "signal_id": "C042_survey:S1",
+   "roi_xyxy": [
+    572.1,
+    161.1,
+    584.7,
+    202.0
+   ],
+   "controls_approach_ids": [],
+   "mapping_status": "UNCONFIRMED"
+  }
+ ],
+ "approaches": [],
+ "activation": null,
+ "notes": [
+  "signal ROIs drawn by the project owner in light_roi_tool.py on 2026-11-14",
+  "PTZ camera: a changed view invalidates this config"
+ ]
+}

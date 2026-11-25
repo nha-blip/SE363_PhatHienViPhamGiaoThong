@@ -1,0 +1,15 @@
+task: detect
+mode: train
+model: D:/se363-bigdata/weights/kaggle_small_vehicle_20261019/last.pt
+resume: true
+data: D:/se363-bigdata/config/vehicle_dataset.yaml
+epochs: 100
+device: 0
+batch: 4
+workers: 0
+cache: false
+patience: 20
+time: null
+save: true
+save_period: -1
+save_dir: D:/se363-bigdata/runs/local_training/vehicle_small_resume_epoch58_100

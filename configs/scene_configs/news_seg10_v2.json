@@ -1,0 +1,123 @@
+{
+ "schema_version": "scene_config.v1",
+ "scene_config_id": "news_seg10:v2",
+ "camera_id": "news_seg10",
+ "version": 2,
+ "status": "ACTIVE",
+ "created_by": "project owner (scene_config_tool.py)",
+ "created_at_utc": "2026-11-16T06:19:20+00:00",
+ "reference_image": {
+  "path": "data/light_phase_eval_20261114/news_seg10/frames/00000.jpg",
+  "sha256": "9c039ea7c7e72322d6ff3075fee8969b0f436c01fd4a089957cc156db757b7cc",
+  "width": 640,
+  "height": 360
+ },
+ "coordinate_system": "pixels of the reference image",
+ "source_transform": {
+  "type": "tv_news_segment",
+  "source": "D:\\se363-bigdata\\data\\vn_news_violation_clips_20261116\\news_seg10",
+  "note": "news overlays (presenter bottom-right, plate boxes) occlude part of the view"
+ },
+ "signals": [
+  {
+   "signal_id": "news_seg10:S1",
+   "roi_xyxy": [
+    373.8,
+    10.8,
+    390.7,
+    51.7
+   ],
+   "controls_approach_ids": [
+    "A1"
+   ],
+   "mapping_status": "CONFIRMED"
+  },
+  {
+   "signal_id": "news_seg10:S2",
+   "roi_xyxy": [
+    494.1,
+    91.6,
+    507.9,
+    147.5
+   ],
+   "controls_approach_ids": [
+    "A1"
+   ],
+   "mapping_status": "CONFIRMED"
+  }
+ ],
+ "approaches": [
+  {
+   "approach_id": "A1",
+   "approach_roi": [
+    [
+     233.2,
+     337.4
+    ],
+    [
+     554.7,
+     339.3
+    ],
+    [
+     559.1,
+     356.7
+    ],
+    [
+     233.2,
+     358.7
+    ]
+   ],
+   "observation_roi": [
+    [
+     0,
+     0
+    ],
+    [
+     640,
+     0
+    ],
+    [
+     640,
+     360
+    ],
+    [
+     0,
+     360
+    ]
+   ],
+   "stop_line": [
+    [
+     556.7,
+     325.0
+    ],
+    [
+     55.1,
+     325.0
+    ]
+   ],
+   "direction": [
+    -0.2546,
+    -0.967
+   ],
+   "direction_points": [
+    [
+     299.2,
+     352.7
+    ],
+    [
+     286.8,
+     305.6
+    ]
+   ]
+  }
+ ],
+ "activation": {
+  "activated_by": "project owner",
+  "activated_at_utc": "2026-11-16T06:19:20+00:00",
+  "note": "signal-to-approach mapping confirmed in scene_config_tool.py"
+ },
+ "notes": [
+  "signal ROIs drawn by the project owner in light_roi_tool.py; exported 2026-11-16",
+  "approaches copied from news_seg00:v2; checked visually by the owner before saving"
+ ]
+}

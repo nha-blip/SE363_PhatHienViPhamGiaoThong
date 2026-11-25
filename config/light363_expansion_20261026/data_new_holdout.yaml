@@ -1,0 +1,9 @@
+path: D:/se363-bigdata/data/TrafficLight363_expanded_candidate_20261026
+train: train_balanced.txt
+val: val_new_source.txt
+test: test_original.txt
+names:
+- red
+- yellow
+- green
+- 'off'

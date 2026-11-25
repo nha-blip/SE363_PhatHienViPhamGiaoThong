@@ -1,0 +1,1 @@
+- 18/11/2026: C069_retry:H1 t=23,24,25 red -> yellow (middle lamp lit orange; owner confirmed from crops). Backup: light_phase_qa_result_before_yellow_fix_20261118.json

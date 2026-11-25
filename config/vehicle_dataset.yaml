@@ -1,0 +1,9 @@
+path: D:/se363-bigdata/data/YOLO363_training_working/Vehicle363-v1
+train: images/train
+val: images/val
+test: images/test
+names:
+  0: car
+  1: motorcycle
+  2: bus
+  3: truck

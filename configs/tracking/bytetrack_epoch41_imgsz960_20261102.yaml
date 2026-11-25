@@ -1,0 +1,39 @@
+execution_enabled: true
+sequence_id: vntraffic_001
+dataset_role: PILOT_DEV
+sequence_directory: data/Tracking363_working/sequences/vntraffic_001
+integration_snapshot: runs/project363/tracking/work_5_3_integration_snapshot.json
+derived_revision: data/Tracking363_working/gt_revisions/vntraffic_001_remove_track68
+baseline_directory: runs/project363/tracking/vehicle_epoch41_vntraffic_001
+baseline_completed_epochs: 41
+detector:
+  model_path: weights/yolo26_vehicle_restart03_20261031/yolo26_fullscene_resume_20261028/vehicle/checkpoints/best.pt
+  expected_sha256: 2cefe325048ba9338da75b76d893b7f8e0ba1e5aba6f2db2ac392aac8af50e67
+  completed_epochs: 41
+  device: cpu
+  cpu_threads: 2
+  imgsz: 960
+  minimum_confidence: 0.1
+  nms_iou: 0.7
+  max_det: 300
+tracker:
+  tracker_type: bytetrack
+  track_high_thresh: 0.25
+  track_low_thresh: 0.1
+  new_track_thresh: 0.25
+  track_buffer: 30
+  match_thresh: 0.8
+  fuse_score: true
+runtime:
+  association: class_agnostic_backend_iou_and_score
+  update_every_frame: true
+  prediction_bounds_policy: explicit_logged_clipping_drop_degenerate_raw_output_preserved
+  gt_bounds_policy: never_modify
+evaluation:
+  diagnostic_iou: 0.5
+  full_metrics_enabled: false
+  gt_semantic_class_status: PENDING
+  gt_completeness_status: UNVERIFIED
+  ignore_regions: null
+  track_gap_interpolation: false
+  tuning_status: BASELINE_ONLY

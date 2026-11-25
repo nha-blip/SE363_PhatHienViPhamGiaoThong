@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DetectionResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sequence_id",
+    "source_frame_id",
+    "mot_frame_id",
+    "width",
+    "height",
+    "fps",
+    "sequence_length",
+    "detections"
+  ],
+  "properties": {
+    "sequence_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_frame_id": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "mot_frame_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "fps": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "sequence_length": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "detections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "bbox_xyxy",
+          "confidence",
+          "class_id",
+          "class_name"
+        ],
+        "properties": {
+          "bbox_xyxy": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "class_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "class_name": {
+            "enum": [
+              "car",
+              "motorcycle",
+              "bus",
+              "truck"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$comment": "Runtime checks additionally enforce mot=source+1, finite coordinates, positive extent, image bounds, original class metadata and per-frame unique track IDs. Empty arrays are valid."
+}

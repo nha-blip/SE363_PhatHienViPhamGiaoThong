@@ -1,0 +1,13 @@
+{
+  "id": "v5nhdf/yolo26-vehicle-eval-epoch27-20261030",
+  "title": "YOLO26 Vehicle Eval Epoch27 20261030",
+  "code_file": "eval.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": ["v5nhdf/yolo363-vehicle-archive-20261027", "v5nhdf/yolo26-vehicle-epoch27-20261030"],
+  "competition_sources": [],
+  "kernel_sources": []
+}

@@ -1,0 +1,19 @@
+{
+ "reviewed_at": "2026-11-15",
+ "reviewer": "project owner",
+ "basis": "Vietnamese signal heads are commonly visible from both sides; a head placed on a road controls the lane travelling towards it on that road. The signal-to-approach mapping drawn by the owner is authoritative; it is not inferred from which way the visible face points.",
+ "configs_confirmed": [
+  "C040_survey:v2",
+  "C057_retry:v2",
+  "C069_retry:v2",
+  "C148_guarded:v2",
+  "C042_survey:v5",
+  "C069_trial01:v2"
+ ],
+ "configs_needing_redraw": {},
+ "configs_pending_owner_check": {},
+ "note": "An earlier suggestion by the assistant that a camera-facing head controls only traffic moving away from the camera was wrong for this context and is withdrawn.",
+ "configs_not_used": {
+  "aicc22:v2": "US source: signals are usually far-side and single-faced, so the visible heads control traffic moving away from the camera, while the drawn approach moves towards it. The owner asked to use it only if it follows the Vietnamese convention; it does not, so it is not activated."
+ }
+}

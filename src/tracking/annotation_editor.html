@@ -1,0 +1,111 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Tracking annotation draft review</title>
+<style>body{background:#181818;color:#eee;font:16px sans-serif;margin:18px}canvas{max-width:100%;border:1px solid #777}button,input,select{margin:4px;padding:7px}#objects{max-height:180px;overflow:auto}.selected{background:#456}#warning{color:#ffca70}</style>
+<h1 id="title"></h1>
+<p id="warning">BẢN NHÁP — chưa phải ground truth. Mỗi frame cần kiểm tra: xe bị thiếu, box trùng hoặc sai, kích thước box và việc mỗi xe giữ đúng một ID.</p>
+<div><button onclick="navigate(-1)">← Frame trước (A)</button><input id="frame" type="number"><button onclick="goToFrame()">Đến frame</button><button onclick="navigate(1)">Frame sau (D)</button><button onclick="markReviewed();navigate(1)">Xác nhận và sang frame sau (Enter)</button><span id="status"></span></div>
+<div><button onclick="mode='select';updateStatus()">Chọn box</button><button onclick="mode='draw';updateStatus()">Vẽ lại box đang chọn</button><button onclick="selected=null;mode='draw';updateStatus()">Thêm xe bị thiếu</button><input id="identity" type="number" min="1" placeholder="ID xe"><button onclick="changeIdentity(false)">Đặt ID cho box này</button><button onclick="changeIdentity(true)">Đổi ID ở mọi frame</button></div>
+<div><button onclick="deleteBox()">Xóa box này (Delete)</button><button onclick="deleteTrack()">Xóa ID này ở mọi frame</button><button onclick="interpolateTrack()">Nội suy khoảng trống của ID này</button><button onclick="mode='ignore';updateStatus()">Vẽ vùng bỏ qua (mọi frame)</button><button onclick="removeIgnore()">Xóa vùng bỏ qua cuối</button></div>
+<div><button onclick="exportReview()">Xuất file kết quả</button><button onclick="saveLocal()">Lưu trong trình duyệt</button></div>
+<p>Xanh lá: nhãn sẵn có. Cam: đề xuất của model, chưa kiểm chứng. Vàng: box đang chọn. Xanh dương: do bạn thêm hoặc sửa. Đỏ gạch: vùng bỏ qua. Bấm box để chọn. Mỗi xe phải giữ một ID xuyên suốt; xe thêm ở frame khác thì đặt lại đúng ID đó, rồi dùng nội suy để lấp các frame giữa. Nội suy không ghi đè box có sẵn và vẫn cần bạn xem lại từng frame. Sửa một frame sẽ bỏ xác nhận của frame đó.</p>
+<canvas id="canvas"></canvas><div id="objects"></div>
+<script>
+const initial = __ANNOTATION_PAYLOAD__;
+const storageKey = 'tracking_draft_'+initial.sequence_id+'_'+(initial.draft_revision||'initial');
+let state = JSON.parse(JSON.stringify(initial));
+let current = 1;
+let selected = null;
+let mode = 'select';
+let dragStart = null;
+let loadedFrame = 0;
+const canvas = document.getElementById('canvas');
+const context = canvas.getContext('2d');
+const background = new Image();
+canvas.width = initial.width;
+canvas.height = initial.height;
+document.getElementById('title').textContent = initial.sequence_id + ' — chỉnh sửa box và ID';
+document.getElementById('frame').min = initial.frames[0].mot_frame_id;
+document.getElementById('frame').max = initial.frames[initial.frames.length-1].mot_frame_id;
+const modeNames={select:'đang chọn box',draw:'đang vẽ box',ignore:'đang vẽ vùng bỏ qua'};
+function ignoreRegions(){state.ignore_regions=state.ignore_regions||[];return state.ignore_regions;}
+function frameData(){return state.frames[current-1];}
+function persist(){try{localStorage.setItem(storageKey,JSON.stringify(state));return true;}catch(error){return false;}}
+function updateStatus(){const frame=frameData();document.getElementById('status').textContent=' MOT '+frame.mot_frame_id+' / nguồn '+(frame.mot_frame_id-1)+' | '+(frame.review_status==='REVIEWED_BY_HUMAN'?'đã xác nhận':'chưa xác nhận')+' | '+modeNames[mode]+' | đã xác nhận '+state.frames.filter(item=>item.review_status==='REVIEWED_BY_HUMAN').length+'/'+state.frames.length;document.getElementById('frame').value=frame.mot_frame_id;}
+function boxColor(object,index){if(index===selected)return 'yellow';if(object.human_corrected)return 'cyan';return object.annotation_origin==='MODEL_PROPOSAL'?'orange':'lime';}
+function render(){
+  context.clearRect(0,0,canvas.width,canvas.height);
+  if(loadedFrame===current)context.drawImage(background,0,0,canvas.width,canvas.height);
+  context.strokeStyle='red';context.lineWidth=3;context.setLineDash([12,8]);ignoreRegions().forEach(box=>context.strokeRect(...box));context.setLineDash([]);
+  const listing=document.getElementById('objects');listing.replaceChildren();
+  frameData().objects.forEach((object,index)=>{
+    const [left,top,width,height]=object.bbox_xywh;
+    context.strokeStyle=boxColor(object,index);context.lineWidth=2;context.strokeRect(left,top,width,height);
+    context.font='18px sans-serif';context.fillStyle='black';context.fillRect(left,Math.max(0,top-23),70,23);context.fillStyle=context.strokeStyle;context.fillText('ID '+object.track_id,left,Math.max(18,top-5));
+    const button=document.createElement('button');button.textContent='ID '+object.track_id+' | '+object.annotation_origin;button.className=index===selected?'selected':'';
+    button.onclick=()=>{selected=index;document.getElementById('identity').value=object.track_id;render();};listing.appendChild(button);
+  });updateStatus();
+}
+function loadFrame(){selected=null;loadedFrame=0;const expected=current;background.onload=()=>{if(current===expected){loadedFrame=expected;render();}};background.src=frameData().image;render();}
+function navigate(offset){current=Math.max(1,Math.min(state.frames.length,current+offset));loadFrame();}
+function goToFrame(){const value=Number(document.getElementById('frame').value);const position=state.frames.findIndex(frame=>frame.mot_frame_id===value);if(position>=0){current=position+1;loadFrame();}}
+function point(event){const bounds=canvas.getBoundingClientRect();return [Math.max(0,Math.min(canvas.width,(event.clientX-bounds.left)*canvas.width/bounds.width)),Math.max(0,Math.min(canvas.height,(event.clientY-bounds.top)*canvas.height/bounds.height))];}
+canvas.onpointerdown=event=>{
+  if(loadedFrame!==current)return;
+  const location=point(event);
+  if(mode!=='select'){dragStart=location;canvas.setPointerCapture(event.pointerId);return;}
+  const candidates=frameData().objects.map((object,index)=>({object,index})).filter(entry=>{const [left,top,width,height]=entry.object.bbox_xywh;return location[0]>=left&&location[0]<=left+width&&location[1]>=top&&location[1]<=top+height;}).sort((first,second)=>first.object.bbox_xywh[2]*first.object.bbox_xywh[3]-second.object.bbox_xywh[2]*second.object.bbox_xywh[3]);
+  selected=candidates.length?candidates[0].index:null;if(selected!==null)document.getElementById('identity').value=frameData().objects[selected].track_id;render();
+};
+canvas.onpointerup=event=>{
+  if(!dragStart)return;const end=point(event);const box=[Math.round(Math.min(dragStart[0],end[0])),Math.round(Math.min(dragStart[1],end[1])),Math.round(Math.abs(end[0]-dragStart[0])),Math.round(Math.abs(end[1]-dragStart[1]))];dragStart=null;
+  if(box[2]<2||box[3]<2)return;
+  if(mode==='ignore'){ignoreRegions().push(box);mode='select';persist();render();return;}
+  if(selected===null){const next=Math.max(0,...state.frames.flatMap(frame=>frame.objects.map(object=>object.track_id)))+1;frameData().objects.push({track_id:next,bbox_xywh:box,class:null,annotation_origin:'HUMAN_ADDED',human_corrected:true});selected=frameData().objects.length-1;}
+  else{frameData().objects[selected].bbox_xywh=box;frameData().objects[selected].human_corrected=true;}
+  document.getElementById('identity').value=frameData().objects[selected].track_id;frameData().review_status='UNREVIEWED';mode='select';render();
+};
+function changeIdentity(global){
+  if(selected===null)return;const identity=Number(document.getElementById('identity').value);const old=frameData().objects[selected].track_id;
+  if(!Number.isInteger(identity)||identity<=0){alert('ID phải là số nguyên dương');return;}
+  const affected=global?state.frames.filter(frame=>frame.objects.some(object=>object.track_id===old)):[frameData()];
+  if(identity!==old&&affected.some(frame=>frame.objects.some(object=>object.track_id===identity))){alert('Trùng ID: hãy xử lý box trùng trước khi đổi');return;}
+  if(global&&!confirm('Đổi ID '+old+' thành '+identity+' ở mọi frame?'))return;
+  affected.forEach(frame=>{frame.objects.filter(object=>object.track_id===old).forEach(object=>{object.track_id=identity;object.human_corrected=true;});frame.review_status='UNREVIEWED';});render();
+}
+function deleteBox(){if(selected!==null&&confirm('Xóa box này trong frame hiện tại?')){frameData().objects.splice(selected,1);frameData().review_status='UNREVIEWED';selected=null;render();}}
+function deleteTrack(){
+  if(selected===null)return;const identity=frameData().objects[selected].track_id;const affected=state.frames.filter(frame=>frame.objects.some(object=>object.track_id===identity));
+  if(!confirm('Xóa ID '+identity+' ở '+affected.length+' frame?'))return;
+  affected.forEach(frame=>{frame.objects=frame.objects.filter(object=>object.track_id!==identity);frame.review_status='UNREVIEWED';});selected=null;persist();render();
+}
+function interpolatedBoxes(frames,identity){
+  const added=[];const anchors=frames.map((frame,position)=>({position,object:frame.objects.find(object=>object.track_id===identity)})).filter(entry=>entry.object);
+  anchors.slice(1).forEach((after,index)=>{const before=anchors[index];const span=after.position-before.position;
+    for(let step=1;step<span;step++){const ratio=step/span;added.push({position:before.position+step,bbox_xywh:before.object.bbox_xywh.map((value,axis)=>Math.round((value+(after.object.bbox_xywh[axis]-value)*ratio)*100)/100)});}});
+  return added;
+}
+function interpolateTrack(){
+  if(selected===null)return;const identity=frameData().objects[selected].track_id;const added=interpolatedBoxes(state.frames,identity);
+  if(!added.length){alert('ID này không có khoảng trống giữa hai frame');return;}
+  if(!confirm('Thêm '+added.length+' box nội suy cho ID '+identity+'? Bạn vẫn cần xem lại các frame đó.'))return;
+  added.forEach(item=>{const frame=state.frames[item.position];frame.objects.push({track_id:identity,bbox_xywh:item.bbox_xywh,class:null,annotation_origin:'HUMAN_INTERPOLATED',human_corrected:true});frame.review_status='UNREVIEWED';});selected=null;persist();render();
+}
+function removeIgnore(){if(ignoreRegions().length&&confirm('Xóa vùng bỏ qua vừa vẽ?')){ignoreRegions().pop();persist();render();}}
+function markReviewed(){if(loadedFrame!==current)return;frameData().review_status='REVIEWED_BY_HUMAN';persist();render();}
+function saveLocal(){alert(persist()?'Đã lưu trong trình duyệt. Nhớ xuất file để có bản sao bên ngoài.':'Trình duyệt không lưu được. Hãy xuất file.');}
+function exportReview(){
+  for(const frame of state.frames){const ids=new Set();for(const object of frame.objects){const [left,top,width,height]=object.bbox_xywh;if(ids.has(object.track_id)||!Number.isInteger(object.track_id)||object.track_id<=0||![left,top,width,height].every(Number.isFinite)||left<0||top<0||width<=0||height<=0||left+width>state.width||top+height>state.height){alert('Box sai hoặc trùng ID ở frame '+frame.mot_frame_id);return;}ids.add(object.track_id);}}
+  const exportState=JSON.parse(JSON.stringify(state));exportState.human_reviewed_frames=state.frames.filter(frame=>frame.review_status==='REVIEWED_BY_HUMAN').map(frame=>frame.mot_frame_id);exportState.status=exportState.human_reviewed_frames.length===state.frames.length?'READY_FOR_IMPORT_VALIDATION':'PARTIALLY_REVIEWED';exportState.is_ground_truth=false;
+  const url=URL.createObjectURL(new Blob([JSON.stringify(exportState,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=initial.sequence_id+'_human_review.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+document.addEventListener('keydown',event=>{
+  if(event.target.tagName==='INPUT')return;
+  if(event.key==='a'||event.key==='A')navigate(-1);
+  else if(event.key==='d'||event.key==='D')navigate(1);
+  else if(event.key==='Enter'){event.preventDefault();markReviewed();navigate(1);}
+  else if(event.key==='Delete')deleteBox();
+});
+try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');if(saved&&saved.source_prediction_sha256===initial.source_prediction_sha256&&confirm('Khôi phục bản đã lưu trong trình duyệt?'))state=saved;}catch(error){}
+loadFrame();
+</script>

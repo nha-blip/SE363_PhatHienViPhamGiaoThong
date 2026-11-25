@@ -1,0 +1,7 @@
+{
+  "enabled": true,
+  "source_notebook": "v5nhdf/yolo26-fullscene-light-vehicle-resume-20261028",
+  "max_restarts": 2,
+  "watch_hours": 72,
+  "poll_seconds": 90
+}

@@ -1,0 +1,9 @@
+path: /kaggle/input/trafficlight363-v1/data/TrafficLight363-v1
+train: images/train
+val: images/val
+test: images/test
+names:
+  0: red
+  1: yellow
+  2: green
+  3: 'off'

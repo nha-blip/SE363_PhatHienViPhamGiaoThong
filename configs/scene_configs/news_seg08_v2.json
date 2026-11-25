@@ -1,0 +1,109 @@
+{
+ "schema_version": "scene_config.v1",
+ "scene_config_id": "news_seg08:v2",
+ "camera_id": "news_seg08",
+ "version": 2,
+ "status": "ACTIVE",
+ "created_by": "project owner (scene_config_tool.py)",
+ "created_at_utc": "2026-11-16T06:19:15+00:00",
+ "reference_image": {
+  "path": "data/light_phase_eval_20261114/news_seg08/frames/00000.jpg",
+  "sha256": "3bf4375a52f82ca49c9c731b11016d00c68cf4a2589ee8a19d52834b0bdb6008",
+  "width": 640,
+  "height": 360
+ },
+ "coordinate_system": "pixels of the reference image",
+ "source_transform": {
+  "type": "tv_news_segment",
+  "source": "D:\\se363-bigdata\\data\\vn_news_violation_clips_20261116\\news_seg08",
+  "note": "news overlays (presenter bottom-right, plate boxes) occlude part of the view"
+ },
+ "signals": [
+  {
+   "signal_id": "news_seg08:S1",
+   "roi_xyxy": [
+    524.8,
+    7.7,
+    536.6,
+    40.4
+   ],
+   "controls_approach_ids": [
+    "A1"
+   ],
+   "mapping_status": "CONFIRMED"
+  }
+ ],
+ "approaches": [
+  {
+   "approach_id": "A1",
+   "approach_roi": [
+    [
+     573.5,
+     331.9
+    ],
+    [
+     60.5,
+     327.4
+    ],
+    [
+     64.5,
+     356.7
+    ],
+    [
+     580.5,
+     360.2
+    ]
+   ],
+   "observation_roi": [
+    [
+     0,
+     0
+    ],
+    [
+     640,
+     0
+    ],
+    [
+     640,
+     360
+    ],
+    [
+     0,
+     360
+    ]
+   ],
+   "stop_line": [
+    [
+     566.6,
+     321.5
+    ],
+    [
+     62.5,
+     321.0
+    ]
+   ],
+   "direction": [
+    -0.0121,
+    -0.9999
+   ],
+   "direction_points": [
+    [
+     198.0,
+     346.3
+    ],
+    [
+     197.5,
+     305.1
+    ]
+   ]
+  }
+ ],
+ "activation": {
+  "activated_by": "project owner",
+  "activated_at_utc": "2026-11-16T06:19:15+00:00",
+  "note": "signal-to-approach mapping confirmed in scene_config_tool.py"
+ },
+ "notes": [
+  "signal ROIs drawn by the project owner in light_roi_tool.py; exported 2026-11-16"
+ ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "v5nhdf/yolo26-fullscene-light-vehicle-resume-20261028",
+  "title": "YOLO26 Fullscene Light Vehicle Resume 20261028",
+  "code_file": "train.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": ["v5nhdf/yolo363-vehicle-archive-20261027", "v5nhdf/yolo363-fullscene-resume-20261028"],
+  "competition_sources": [],
+  "kernel_sources": []
+}

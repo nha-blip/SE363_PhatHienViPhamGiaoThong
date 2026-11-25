@@ -1,0 +1,12 @@
+# Python 3.10. Cài torch theo CUDA của máy trước (https://pytorch.org), ví dụ torch 2.7.1+cu118.
+ultralytics==8.4.178
+lap==0.5.13
+numpy==2.2.6
+opencv-python==5.0.0.93
+pillow==12.3.0
+PyYAML==6.0.3
+scipy==1.15.3
+psutil==7.2.2
+pytest==9.1.1
+# Chỉ cần cho scripts/hcmc_truck_survey_20261125.py (gợi ý CLIP khi QA nhãn xe)
+open_clip_torch==3.3.0

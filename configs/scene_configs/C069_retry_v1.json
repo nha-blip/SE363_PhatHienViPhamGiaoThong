@@ -1,0 +1,40 @@
+{
+ "schema_version": "scene_config.v1",
+ "scene_config_id": "C069_retry:v1",
+ "camera_id": "C069_retry",
+ "version": 1,
+ "status": "DRAFT",
+ "created_by": "project owner (ROIs); converted by export_signal_rois_to_scene_configs.py",
+ "created_at_utc": "2026-11-15T01:58:20+00:00",
+ "reference_image": {
+  "path": "data/light_phase_eval_20261114/C069_retry/frames/00031.jpg",
+  "sha256": "99900634bebaaaebe16851beb81a102ce628f0ffe649248378b242b19a5faafc",
+  "width": 900,
+  "height": 613
+ },
+ "coordinate_system": "pixels of the reference image",
+ "source_transform": {
+  "type": "scene_band_crop_of_phone_screen_recording",
+  "source": "D:\\se363-bigdata\\data\\iHanoi_capture\\retry_pair_20261029_131120\\C069_10_PTZ.mp4",
+  "note": "band detected per frame; timebase_verified=false"
+ },
+ "signals": [
+  {
+   "signal_id": "C069_retry:S1",
+   "roi_xyxy": [
+    758.4,
+    337.1,
+    817.3,
+    480.2
+   ],
+   "controls_approach_ids": [],
+   "mapping_status": "UNCONFIRMED"
+  }
+ ],
+ "approaches": [],
+ "activation": null,
+ "notes": [
+  "signal ROIs drawn by the project owner in light_roi_tool.py on 2026-11-14",
+  "PTZ camera: a changed view invalidates this config"
+ ]
+}

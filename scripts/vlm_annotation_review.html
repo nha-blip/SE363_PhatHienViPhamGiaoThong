@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="vi">
+<meta charset="utf-8">
+<title>VLM363 — Duyệt nhãn sự kiện nháp</title>
+<style>
+body{background:#151515;color:#eee;font:16px system-ui;margin:24px}section{border-top:1px solid #666;padding:20px 0}canvas{width:100%;max-width:1100px;height:auto}video{width:100%;max-width:960px}a{color:#78dafa}button,select,input,textarea{font:inherit;padding:6px;margin:4px}textarea{width:90%;height:70px}.warning{color:#ffcf62}.controls{position:sticky;top:0;background:#222;padding:10px;z-index:2}label{display:block}.evidence{margin:12px 0}pre{white-space:pre-wrap}
+</style>
+<h1>VLM363 — lô nhãn nháp 001</h1>
+<p class="warning">Chưa phải GT. QA độ rõ nguồn không có nghĩa đã duyệt nhãn từng xe. Chỉ chọn các trường hợp đầu tiên, chưa gán toàn video. Bbox xanh lá được gán thủ công, không phải YOLO.</p>
+<p><a href="annotation_report.md">Báo cáo</a> · <a href="annotation_payload.json">Dữ liệu nháp</a></p>
+<div class="controls"><button id="export">Xuất human_review.json</button><span id="status"></span></div>
+<main id="cases"></main>
+<script id="payload" type="application/json">__ANNOTATION_PAYLOAD__</script>
+<script>
+const payload = JSON.parse(document.getElementById('payload').textContent);
+const storageKey = 'vlm_review_' + payload.batch_id + '_' + payload.draft_sha256;
+let reviews = {};
+try { reviews = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch (error) { reviews = {}; }
+function element(tag, value, parent) {
+  const node = document.createElement(tag);
+  if (value !== null) node.textContent = value;
+  if (parent) parent.append(node);
+  return node;
+}
+function save() {
+  try { localStorage.setItem(storageKey, JSON.stringify(reviews)); document.getElementById('status').textContent = 'Đã lưu nháp trong browser; chưa ghi file.'; }
+  catch (error) { document.getElementById('status').textContent = 'Browser không lưu cục bộ được; hãy export trước khi đóng.'; }
+}
+for (const sample of payload.samples) {
+  const review = reviews[sample.sample_id] || {sample_id:sample.sample_id, decision:'UNREVIEWED', final_scope_status:sample.scope_status, final_package_assessment:sample.package_assessment_proposed, target_bbox_confirmed:false, signal_mapping_confirmed:false, stop_line_confirmed:false, notes:''};
+  reviews[sample.sample_id] = review;
+  const section = element('section', null, document.getElementById('cases'));
+  element('h2', sample.sample_id + ': ' + sample.title, section);
+  element('p', 'Nhãn đề xuất: ' + (sample.package_assessment_proposed || 'ngoài phạm vi / null') + ' | Nguồn: ' + sample.survey_id + ' | Giây nguồn danh nghĩa: ' + sample.clip.join('–'), section);
+  const video = element('video', null, section);
+  video.controls = true; video.preload = 'none'; video.src = sample.media.url;
+  const link = element('a', 'Mở/tải clip — nếu browser không phát được, dùng player local', section); link.href = sample.media.url;
+  element('p', 'Giây clip 0 tương ứng giây nguồn ' + sample.clip[0] + '. Bbox là pixel ảnh gốc; không dùng tọa độ trên video resize.', section);
+  const frameSelect = element('select', null, section);
+  for (const evidence of sample.evidence) {
+    const option = element('option', 'Frame ' + evidence.frame_id + ' | ' + evidence.timestamp_s_nominal.toFixed(2) + 's nguồn', frameSelect);
+    option.value = String(evidence.frame_id);
+  }
+  const canvas = element('canvas', null, section);
+  canvas.width = sample.source_width; canvas.height = sample.source_height;
+  const context = canvas.getContext('2d');
+  function draw() {
+    const evidence = sample.evidence.find(frame => String(frame.frame_id) === frameSelect.value);
+    const picture = new Image();
+    picture.onload = () => {
+      if (String(evidence.frame_id) !== frameSelect.value) return;
+      context.drawImage(picture, 0, 0);
+      const [left, top, right, bottom] = evidence.bbox_xyxy;
+      context.strokeStyle = '#00ff40'; context.lineWidth = 4;
+      context.strokeRect(left, top, right-left, bottom-top);
+      context.fillStyle = '#00ff40'; context.font = '22px sans-serif';
+      context.fillText(sample.sample_id + ' TARGET (manual draft)', left, Math.max(24, top-8));
+    };
+    picture.src = evidence.url;
+  }
+  frameSelect.addEventListener('change', draw); draw();
+  element('h3', 'Dữ kiện nhìn thấy', section);
+  const facts = element('ul', null, section);
+  sample.facts.forEach(fact => element('li', fact, facts));
+  element('h3', 'Điểm cần xác minh', section);
+  const limits = element('ul', null, section);
+  sample.limitations.forEach(limit => element('li', limit, limits));
+  function selectField(title, field, options) {
+    const label = element('label', title, section);
+    const select = element('select', null, label);
+    for (const value of options) { const option = element('option', value === null ? 'null / ngoài phạm vi' : value, select); option.value = value === null ? '' : value; }
+    select.value = review[field] === null ? '' : review[field];
+    select.addEventListener('change', () => { review[field] = select.value || null; save(); });
+  }
+  selectField('Quyết định duyệt', 'decision', ['UNREVIEWED','CONFIRM_PROPOSAL','CHANGE_LABEL','NEEDS_GEOMETRY','REJECT_TARGET']);
+  selectField('Phạm vi', 'final_scope_status', ['in_scope','out_of_scope','scope_uncertain']);
+  selectField('Nhãn gói đã xem', 'final_package_assessment', [null,'red_light_crossing','no_red_light_crossing','insufficient_evidence']);
+  for (const [field, title] of [['target_bbox_confirmed','Đúng xe và bbox mốc'],['signal_mapping_confirmed','Đúng đèn điều khiển xe này'],['stop_line_confirmed','Đúng vạch dừng cho xe này']]) {
+    const label = element('label', null, section); const checkbox = element('input', null, label);
+    checkbox.type='checkbox'; checkbox.checked=review[field]; label.append(document.createTextNode(title));
+    checkbox.addEventListener('change', () => {review[field]=checkbox.checked; save();});
+  }
+  const notes = element('textarea', null, section); notes.placeholder='Nếu sai bbox/đèn/vạch, ghi mẫu, frame và mô tả cần sửa'; notes.value=review.notes;
+  notes.addEventListener('input', () => {review.notes=notes.value; save();});
+}
+document.getElementById('export').addEventListener('click', () => {
+  const rows = payload.samples.map(sample => ({...reviews[sample.sample_id], source_sha256:sample.source_sha256}));
+  for (const row of rows) {
+    if (row.final_scope_status !== 'in_scope' && row.final_package_assessment !== null) {alert(row.sample_id + ': ngoài/chưa rõ phạm vi phải để nhãn null.'); return;}
+    if (row.decision === 'CONFIRM_PROPOSAL' && (!row.target_bbox_confirmed || ((row.final_package_assessment === 'red_light_crossing' || row.final_package_assessment === 'no_red_light_crossing') && (!row.signal_mapping_confirmed || !row.stop_line_confirmed)))) {alert(row.sample_id + ': cần xác nhận target; nhãn dương/âm cần đúng đèn và vạch.'); return;}
+  }
+  const output = {batch_id:payload.batch_id, draft_sha256:payload.draft_sha256, exported_at_utc:new Date().toISOString(), is_ground_truth:false, status:'REVIEW_EXPORT_REQUIRES_VALIDATION', reviews:rows};
+  const url = URL.createObjectURL(new Blob([JSON.stringify(output,null,2)], {type:'application/json'}));
+  const link=document.createElement('a'); link.href=url; link.download='human_review.json'; link.click();
+  setTimeout(() => URL.revokeObjectURL(url),1000);
+});
+</script>
+</html>

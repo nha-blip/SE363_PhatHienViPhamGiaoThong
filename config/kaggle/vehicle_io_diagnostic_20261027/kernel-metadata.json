@@ -1,0 +1,14 @@
+{
+  "id": "v5nhdf/yolo26-vehicle-io-diagnostic-20261027",
+  "title": "YOLO26 Vehicle IO Diagnostic 20261027",
+  "code_file": "probe.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": ["v5nhdf/yolo363-readable-crops-20261027"],
+  "competition_sources": [],
+  "kernel_sources": []
+}
