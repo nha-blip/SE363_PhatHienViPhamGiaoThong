@@ -13,7 +13,7 @@ src.signal.phase_voting.signal_intervals, and an activated SceneConfig approach.
 """
 from dataclasses import dataclass, field
 
-VEHICLE_CLASSES = {"car", "motorcycle", "bus", "truck"}
+VEHICLE_CLASSES = {"car", "motorcycle", "bus", "truck", "pickup", "minibus"}  # spec v1.1 §3.1
 NOT_RED = {"green", "yellow"}
 NO_OBSERVATION = "no signal observation at crossing time"
 

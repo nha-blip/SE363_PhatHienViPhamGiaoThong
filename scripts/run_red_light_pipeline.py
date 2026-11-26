@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from external_qa_extract_hanoi_20261113 import scene_band  # noqa: E402
 from light_phase_extract_detect_20261114 import CLIPS, SEQUENCES  # noqa: E402
 from build_roi_classifier_detections import a_in_roi, classify, cut, grow  # noqa: E402
-from scripts.run_tracking_pilot import NAMES  # noqa: E402
+from scripts.run_tracking_pilot import detector_names  # noqa: E402
 from src.rules.red_light import RuleSettings, TrackPoint, evaluate_scene  # noqa: E402
 from src.rules.track_stitch import StitchSettings, stitch_tracks  # noqa: E402
 from src.scene.config import load_active  # noqa: E402
@@ -47,45 +47,62 @@ def sha256(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+TIMEBASE = {}  # camera_id -> how frame times were obtained (spec §9.1), written to the run manifest
+
+
+def decoder_time(pts_s, previous, nominal):
+    """Source time of a decoded frame: the decoder PTS when valid (spec §9.1: never the nominal FPS when a PTS exists).
+    Returns (t, used_pts). A missing, negative or non-increasing PTS falls back to the nominal time."""
+    if pts_s is not None and pts_s >= 0 and (previous is None or pts_s > previous):
+        return pts_s, True
+    return nominal, False
+
+
 def frames_for(camera_id, ref_w, ref_h):
-    """Yields (t, source_index, image or None, reason)."""
+    """Yields (t, source_index, image or None, reason); t is the source time in seconds."""
     if camera_id in SEQUENCES:
         folder = SEQUENCES[camera_id]
         fps = float([l for l in (folder / "seqinfo.ini").read_text().splitlines() if l.startswith("frameRate")][0].split("=")[1])
         files = sorted((folder / "img1").glob("*.jpg"))
         step = max(1, round(fps / SAMPLE_FPS))
+        TIMEBASE[camera_id] = {"timebase": "nominal_fps_image_sequence", "fps": fps, "timebase_verified": False}
         for k in range(0, len(files), step):
             yield round(k / fps, 3), k, cv2.imread(str(files[k])), None
         return
     cap = cv2.VideoCapture(str(CLIPS[camera_id]))
     fps, n = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     ref_y0 = None  # fixed crop window: where the SceneConfig reference image sits inside the phone screen
-    t = 0.0
+    t, last_pts, fallbacks, sampled = 0.0, None, 0, 0
+    TIMEBASE[camera_id] = info = {"timebase": "decoder_pts", "nominal_fps": fps, "capture_method": "phone_screen_recording",
+                                  "timebase_verified": False}
     while t * fps < n:
         index = int(t * fps)
         cap.set(cv2.CAP_PROP_POS_FRAMES, index)
         ok, frame = cap.read()
         if not ok:
             break
+        source_t, used = decoder_time(cap.get(cv2.CAP_PROP_POS_MSEC) / 1000.0, last_pts, t)
+        last_pts, fallbacks, sampled = (source_t if used else last_pts), fallbacks + (not used), sampled + 1
+        info.update(pts_fallback_frames=fallbacks, sampled_frames=sampled)
         y0, y1 = scene_band(frame)
         if frame.shape[1] != ref_w or y1 - y0 < ref_h - 15:
-            yield round(t, 3), index, None, f"scene band {y1 - y0}px, reference {ref_h}px (app screen, map or layout change)"
+            yield round(source_t, 3), index, None, f"scene band {y1 - y0}px, reference {ref_h}px (app screen, map or layout change)"
         else:
             if ref_y0 is None:
                 located, score = locate_reference(frame, y0, y1) if abs((y1 - y0) - ref_h) <= 15 else (None, 0.0)
                 if score < 0.5:
-                    yield round(t, 3), index, None, f"reference view not found in this frame (match {score:.2f})"
+                    yield round(source_t, 3), index, None, f"reference view not found in this frame (match {score:.2f})"
                     t += 1 / SAMPLE_FPS
                     continue
                 ref_y0 = located
             if not (y0 - 3 <= ref_y0 and ref_y0 + ref_h <= y1 + 3):
-                yield round(t, 3), index, None, f"scene band {y0}-{y1} does not contain the reference window {ref_y0}-{ref_y0 + ref_h}"
+                yield round(source_t, 3), index, None, f"scene band {y0}-{y1} does not contain the reference window {ref_y0}-{ref_y0 + ref_h}"
             else:
                 crop = frame[ref_y0:ref_y0 + ref_h]
                 if crop.std() < 25 or (crop.min(axis=2) > 225).mean() > 0.15:
-                    yield round(t, 3), index, None, "black/white or flat frame"
+                    yield round(source_t, 3), index, None, "black/white or flat frame"
                 else:
-                    yield round(t, 3), index, crop, None
+                    yield round(source_t, 3), index, crop, None
         t += 1 / SAMPLE_FPS
     cap.release()
     if ref_y0 is None:
@@ -161,6 +178,7 @@ def main():
         raise ValueError("vehicle checkpoint hash mismatch")
     from ultralytics import YOLO
     vehicle_model, light_model = YOLO(str(ROOT / det["model_path"])), YOLO(str(LIGHT_WEIGHTS))
+    NAMES = detector_names(vehicle_model.names)
     tracker = create_ultralytics_adapter(tracking["tracker"], NAMES, SAMPLE_FPS, allow_execution=True)
     bounded = LoggedBoundsBackend(tracker.backend, ref_w, ref_h)
     tracker.backend = bounded
@@ -209,7 +227,7 @@ def main():
                "scope_status": r.scope_status, "assessment": r.assessment, "crossings": r.crossings, "uncertainty_reasons": r.uncertainty_reasons}
               for r in results]
     manifest = {"scene_config_id": config["scene_config_id"], "scene_config_sha256": sha256(a.scene_config), "source": str(CLIPS.get(config["camera_id"]) or SEQUENCES[config["camera_id"]]),
-                "sample_fps": SAMPLE_FPS, "frames": len(all_frames), "quality_gaps": len(gaps), "tracker_bounds_events": len(bounded.events), "tracking_config": str(TRACK_CONFIG),
+                "sample_fps": SAMPLE_FPS, "timebase": TIMEBASE.get(config["camera_id"]), "frames": len(all_frames), "quality_gaps": len(gaps), "tracker_bounds_events": len(bounded.events), "tracking_config": str(TRACK_CONFIG),
                 "vehicle_checkpoint_sha256": det["expected_sha256"], "light_checkpoint_sha256": sha256(LIGHT_WEIGHTS), "light_reader": a.light_reader,
                 "colour_checkpoint_sha256": sha256(COLOUR_WEIGHTS) if colour_model is not None else None, "rule_settings": vars(RuleSettings()),
                 "stitch_settings": vars(StitchSettings()), "track_joins": joins, "timebase_verified": config["camera_id"] in SEQUENCES, "status": "PREDICTIONS_NOT_GT"}

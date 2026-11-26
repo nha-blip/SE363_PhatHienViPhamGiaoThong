@@ -45,3 +45,10 @@ def test_car_and_truck_labels_are_one_family_and_each_piece_joins_once():
     c = piece(3, 0.3, [385, 345], x=605)
     _, joins = stitch_tracks(a + b + c, [LINE])
     assert len(joins) == 1 and joins[0]["to_id"] == 2
+
+
+def test_pickup_and_minibus_join_the_four_wheel_family():
+    a = piece(1, 0.0, [500, 460, 420], cls="pickup")
+    b = piece(2, 0.3, [380, 340], cls="minibus")
+    _, joins = stitch_tracks(a + b, [LINE])
+    assert len(joins) == 1 and joins[0]["to_id"] == 2

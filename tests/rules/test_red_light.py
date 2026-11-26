@@ -207,3 +207,9 @@ def test_arrow_flag_is_read_from_the_scene_config():
               "approaches": [{k: v for k, v in APPROACH.items() if k != "signal_ids"}]}
     results = evaluate_scene(moving(600, 200, 20), config, signal(("green", 0, 10)))
     assert results[0].assessment == "insufficient_evidence"
+
+
+def test_six_class_pickup_and_minibus_are_in_scope():
+    for cls in ("pickup", "minibus"):
+        r = evaluate_approach(moving(600, 200, 20, cls=cls), APPROACH, signal(("red", 0, 10)))
+        assert r.scope_status == "in_scope" and r.assessment == "red_light_crossing", cls

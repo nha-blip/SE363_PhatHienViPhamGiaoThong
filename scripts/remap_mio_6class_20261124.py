@@ -6,7 +6,9 @@ original boxes of that image (IoU >= 0.9): pickup_truck -> 4 pickup, work_van ->
 an unmatched truck box stays 3 and is counted. car/motorcycle/bus are unchanged. HCMC labels are copied unchanged
 (their pickups/minibuses are step 2). Vehicle363 itself is never modified: new label files go to
 data/Vehicle363_6class_labels_20261124/<split>/, beside a summary.
-Usage: remap_mio_6class_20261124.py <extracted archive root containing vehicle/images and vehicle/labels>
+Usage: remap_mio_6class_20261124.py <Vehicle363 root containing images/<split> and labels/<split>>
+25/11/2026: run on the full-frame copy data/YOLO363_training_working/Vehicle363-v1 (train/val/test) into
+data/Vehicle363_6class_labels_fullframe_20261125; the 24/11 output from the crop archive is superseded.
 
 The archive (v5nhdf/yolo363-vehicle-archive-20261027) keeps val as full frames (names = Vehicle363 final images) but its
 train is the readable-crop set: `<source>__<audit key[:20]>__<focus index>` crops cut WITHOUT rescaling from frames
@@ -27,7 +29,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "data/Vehicle363-v1/metadata/source_manifest.json"
 GT = ROOT / "data/MIO_gt_download_20261103/gt_train.csv"
-OUT = ROOT / "data/Vehicle363_6class_labels_20261124"
+OUT = ROOT / "data/Vehicle363_6class_labels_fullframe_20261125"
 NEW = {"pickup_truck": 4, "work_van": 5, "articulated_truck": 3, "single_unit_truck": 3}
 
 
@@ -69,7 +71,7 @@ def remap_line(line, W, H, originals, offset=(0.0, 0.0)):
 def main():
     if OUT.exists():
         raise FileExistsError(f"{OUT} exists; never overwrite a label version")
-    src = Path(sys.argv[1]) / "vehicle"
+    src = Path(sys.argv[1])
     originals = defaultdict(list)
     with open(GT, newline="") as f:
         for img_id, cls, x1, y1, x2, y2 in csv.reader(f):
@@ -81,7 +83,7 @@ def main():
     for key, record in sqlite3.connect(AUDIT).execute("select identity, record from images where kind='vehicle' and source='mio'"):
         audit[key[:20]] = record
     stats = Counter()
-    for split in ("train", "val"):
+    for split in ("train", "val", "test"):
         (OUT / split).mkdir(parents=True)
         images = {p.stem: p for p in (src / "images" / split).iterdir()}  # one listing; a glob per label is O(n^2)
         for label in sorted((src / "labels" / split).glob("*.txt")):

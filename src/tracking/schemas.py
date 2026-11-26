@@ -2,7 +2,7 @@ import math
 from dataclasses import dataclass
 
 
-VEHICLE_CLASSES = frozenset({"car", "motorcycle", "bus", "truck"})
+VEHICLE_CLASSES = frozenset({"car", "motorcycle", "bus", "truck", "pickup", "minibus"})  # spec v1.1 §15.3
 FRAME_FIELDS = ("sequence_id", "source_frame_id", "mot_frame_id", "width", "height", "fps", "sequence_length")
 
 

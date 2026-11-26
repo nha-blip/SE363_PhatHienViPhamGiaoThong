@@ -1,6 +1,6 @@
 # Đặc tả chi tiết hệ thống 363 — Phân tích giao thông bằng CV, VLM và dữ liệu phân tán
 
-**Phiên bản:** 1.0 — 30/10/2026  
+**Phiên bản:** 1.1 — 25/11/2026 (1.0 — 30/10/2026). Thay đổi ở bản 1.1: taxonomy xe 6 lớp (§3.1, FR-06, §15.3), cách đọc trạng thái đèn (§9.4), ngưỡng nghiệm thu detector (§19.2, §21).  
 **Trạng thái:** Bản thiết kế tổng hợp để rà soát và triển khai; chưa phải biên bản nghiệm thu hoặc phạm vi đã được giảng viên phê duyệt.  
 **Dự án:** SE363 — Traffic Violation Understanding.
 
@@ -44,7 +44,7 @@ Các mục tiêu cụ thể:
 | Hạng mục | Phạm vi |
 | --- | --- |
 | Hành vi | Nghi vượt vạch dừng khi đèn điều khiển hướng đi đã đỏ |
-| Phương tiện | `car`, `motorcycle`, `bus`, `truck`; bán tải thuộc `truck` |
+| Phương tiện | `car`, `motorcycle`, `bus`, `truck`, `pickup`, `minibus` (định nghĩa ở §15.3) |
 | Hướng di chuyển | Đi thẳng trong vùng đã cấu hình |
 | Nguồn đánh giá | Video liên tục từ góc camera cố định, có trục thời gian và cấu hình cảnh |
 | Độ phân giải mục tiêu | Khung hình 1280×720; kích thước đầu vào mô hình được cấu hình riêng |
@@ -179,7 +179,7 @@ Các mã dưới đây thuộc bản đặc tả này, không đồng nhất s�
 | FR-03 | Lưu source time, processing time và sai lệch thời gian riêng | Phải | Không dùng thời gian xử lý thay thời điểm vượt vạch |
 | FR-04 | Kiểm tra chất lượng theo ROI và theo đoạn | Phải | Đoạn hỏng có cờ và lý do, không âm thầm coi là bình thường |
 | FR-05 | Quản lý SceneConfig có phiên bản và kiểm tra hình học | Phải | Không kích hoạt cấu hình thiếu vạch/đèn/quan hệ điều khiển |
-| FR-06 | Phát hiện bốn lớp xe và lưu confidence | Phải | Lớp từ checkpoint được ánh xạ đúng taxonomy |
+| FR-06 | Phát hiện sáu lớp xe (§15.3) và lưu confidence | Phải | Lớp từ checkpoint được ánh xạ đúng taxonomy; checkpoint 4 lớp cũ chỉ chạy được khi cấu hình khai báo rõ là 4 lớp |
 | FR-07 | Ước lượng trạng thái đèn và khoảng chuyển màu | Phải | Có `unknown` khi không quan sát được |
 | FR-08 | Theo dõi xe theo camera/session | Phải | ID không bị hiểu là định danh toàn hệ thống |
 | FR-09 | Quản lý lượt xe, phạm vi hướng đi và khoảng che khuất | Phải | Xe dừng rồi đi tiếp không tự tạo hai lượt |
@@ -228,7 +228,15 @@ Khoảng vượt `[crossing_time_min, crossing_time_max]` được giới hạn 
 
 ### 9.4. Đèn và mapping
 
-Detector hiện tại nhận diện các lớp `red`, `yellow`, `green`, `off`. Tầng hệ thống bổ sung `unknown` và `other` để biểu diễn quan sát chưa đủ hoặc tín hiệu chưa hỗ trợ; các giá trị này không nhất thiết là lớp train.
+Detector đèn nhận diện các lớp `red`, `yellow`, `green`, `off`. Tầng hệ thống bổ sung `unknown` và `other` để biểu diễn quan sát chưa đủ hoặc tín hiệu chưa hỗ trợ; các giá trị này không nhất thiết là lớp train.
+
+Màu của từng đèn điều khiển được đọc trong ROI đèn khai báo ở SceneConfig, không dựa vào việc tự gom box trên toàn ảnh. Thứ tự ưu tiên:
+
+1. **Theo vị trí bóng sáng:** áp dụng cho đèn ba bóng có khai báo `lamp_layout` (`vertical3`: đỏ trên, vàng giữa, xanh dưới; `horizontal3`: đỏ trái, vàng giữa, xanh phải). ROI được chia ba vùng; vùng có bóng sáng trội hơn hẳn hai vùng còn lại cho ra màu. Quy tắc này đọc được đèn vàng VN có màu cam mà detector dễ nhầm sang đỏ.
+2. **Theo detector + bộ phân loại màu:** box của detector đèn nằm trong ROI được đọc lại màu bằng bộ phân loại ảnh cắt (gồm lớp `none`). Không có box thì phân loại toàn ROI. Kết quả `none` hoặc không đọc được không tạo màu.
+3. **Không khai báo `lamp_layout`** cho đèn có bóng mũi tên hoặc đèn đếm giây; những đèn này đi theo bước 2. Đèn có mũi tên rẽ được đánh dấu `has_turn_arrow`: màu xanh đọc được từ đèn đó không chứng minh quyền đi thẳng.
+
+Màu theo từng frame được bỏ phiếu theo thời gian (cửa sổ 2 s, chỉ dùng frame đã qua); không có quan sát trong 6 s thì trạng thái là `unknown`. Chuyển trực tiếp xanh→đỏ mà không thấy vàng thì 3,5 s đầu của khoảng đỏ được coi là chưa chắc màu, nên crossing rơi vào đó là `insufficient_evidence`. Các tham số trên là giá trị đã thử trên dữ liệu pilot, phải ghi theo phiên bản cấu hình.
 
 Trạng thái phải được gắn với đèn điều khiển đúng hướng xe. Không chọn đèn gần xe nhất chỉ dựa trên khoảng cách pixel. Temporal smoothing phải giữ lịch sử quan sát và độ trễ; không được hồi tố một màu qua khoảng chuyển không rõ rồi coi đó là dữ kiện chắc chắn.
 
@@ -426,7 +434,18 @@ Train có thể kết hợp full-scene và crop đã QA, nhưng cần thử nghi
 
 ### 15.3. Nhãn và kiểm tra
 
-- Bốn lớp xe theo taxonomy dự án; quy tắc bán tải→truck được thống nhất trước QA.
+- Sáu lớp xe (chốt 21/11/2026), mã lớp 0–5:
+
+  | Mã | Lớp | Gồm |
+  | --- | --- | --- |
+  | 0 | `car` | Ô tô con, SUV, MPV/minivan 7 chỗ |
+  | 1 | `motorcycle` | Xe máy, xe máy điện |
+  | 2 | `bus` | Xe khách và xe buýt trên 16 chỗ |
+  | 3 | `truck` | Xe tải có cabin riêng và thùng, xe ben, đầu kéo, container |
+  | 4 | `pickup` | Xe bán tải (cabin + thùng hở phía sau) |
+  | 5 | `minibus` | Xe từ 16 chỗ trở xuống dạng thùng (Hiace, Transit, Solati…) và mọi loại van, kể cả van chở hàng |
+
+  Mã 0–3 giữ nguyên so với taxonomy 4 lớp cũ, nên nhãn cũ chuyển sang bằng cách tách `truck` thành `truck`/`pickup`/`minibus`; `bus` cũ cần soát lại các xe ≤16 chỗ. Mọi thành phần còn giả định 4 lớp (tên lớp, nhóm lớp khi nối track, luật, cấu hình tracking) phải cập nhật trước khi kích hoạt model 6 lớp.
 - Bốn lớp màu đèn hiện tại; `unknown` được xử lý ở tầng dữ liệu/hệ thống khi không đủ quan sát.
 - Bbox đánh dấu phần nhìn thấy theo quy ước đã công bố; không tự ước lượng vật thể bị che hoàn toàn.
 - Bộ test sự kiện gán mọi lượt đủ phạm vi trong đoạn video liên tục, gồm xe tuân thủ.
@@ -498,7 +517,7 @@ Yêu cầu vận hành hiện tại: ADB điện thoại đã được người 
 
 | Tầng | Chỉ số cần báo cáo |
 | --- | --- |
-| Detector xe | Precision, recall, mAP50, mAP50–95, AP từng lớp, confusion car/truck, FN motorcycle |
+| Detector xe | Recall từng lớp (§19.2), precision, mAP50, mAP50–95, AP từng lớp, confusion car/truck/pickup/minibus và bus/minibus, FN motorcycle |
 | Detector đèn | AP từng màu, recall theo kích thước bbox, confusion và `unknown` ở tầng hệ thống |
 | Tracking | IDF1/HOTA khi có GT tương ứng, ID switches, mất dấu gần vạch |
 | Hình học/thời gian | Sai số crossing, mapping đèn, tỷ lệ khoảng bất định |
@@ -515,7 +534,17 @@ Ghép dự đoán và GT một-một theo nguồn, phương tiện và khoảng 
 
 Trên các sự kiện dương tính xác định, hệ thống trả `insufficient_evidence` hoặc không sinh cảnh báo dương tính vẫn là bỏ sót trong phép đo recall đầu-cuối. Đồng thời báo cáo riêng chất lượng từ chối của VLM trên nhãn `package_assessment` để phân biệt lỗi cắt clip với lỗi suy luận.
 
-Mẫu GT không đủ bằng chứng không được tự chuyển thành âm tính để tính confusion matrix nhị phân. Báo cáo nhóm này riêng và thêm đánh giá ba trạng thái. Ngưỡng đạt về AP/recall chưa được phê duyệt: phải điền trước khi chạy test nghiệm thu, không chọn sau khi nhìn kết quả.
+Mẫu GT không đủ bằng chứng không được tự chuyển thành âm tính để tính confusion matrix nhị phân. Báo cáo nhóm này riêng và thêm đánh giá ba trạng thái.
+
+**Ngưỡng nghiệm thu detector (chốt 02/11/2026):** recall từng lớp **≥ 95%** cho cả detector xe và detector đèn.
+
+- Recall lớp c = số vật thể thật lớp c được phát hiện với IoU ≥ 0,5 **và gọi đúng lớp c**, chia cho **tổng số vật thể thật lớp c**. Vật thể bị bỏ sót và vật thể bị gọi sai lớp đều tính là không đạt. Đây không phải mAP.
+- Xe: áp dụng cho từng lớp trong sáu lớp ở §15.3.
+- Đèn: áp dụng cho `red`, `yellow`, `green`. Lớp `off` vẫn được train nhưng không tính vào ngưỡng, báo cáo riêng.
+- Đo ở đúng kích thước ảnh và ngưỡng confidence mà pipeline sử dụng; luôn báo precision đi kèm vì recall phụ thuộc ngưỡng.
+- Báo riêng theo nguồn: tập test của dataset và tập camera Việt Nam chưa dùng để train.
+
+Ngưỡng precision đi kèm, ngưỡng recall sự kiện và cảnh báo giả theo giờ chưa được phê duyệt: phải điền trước khi chạy test nghiệm thu, không chọn sau khi nhìn kết quả.
 
 ### 19.3. Ca kiểm thử bắt buộc
 
@@ -570,7 +599,7 @@ Các quyết định cần chốt bằng thử nghiệm hoặc rà soát yêu c�
 | VLM cụ thể và precision | Đo VRAM, latency, chất lượng trên gói evidence thực |
 | Pre/post context, keyframes | Đo độ đầy đủ bằng chứng và latency trên dev |
 | Ngưỡng chất lượng/bbox/confidence | QA mẫu đại diện và phân tích lỗi theo lớp/nguồn |
-| Ngưỡng AP, recall, false alerts để nghiệm thu | Thống nhất trước test chính |
+| Ngưỡng precision, recall sự kiện, false alerts để nghiệm thu | Thống nhất trước test chính (recall từng lớp của detector đã chốt ở §19.2) |
 | Retention và dung lượng | Ước tính theo lưu lượng, quyền truy cập và nhu cầu giữ bằng chứng |
 | ALPR/RAG có bắt buộc ở bản nộp không | Chốt phạm vi với chủ dự án/giảng viên |
 
@@ -579,7 +608,7 @@ Các quyết định cần chốt bằng thử nghiệm hoặc rà soát yêu c�
 | Nội dung bản đặc tả | Căn cứ | Điều chỉnh trong bản này |
 | --- | --- | --- |
 | Kiến trúc CV + tracking + VLM + Big Data | S1, S2 | Trình bày rõ hai phương án luồng dữ liệu |
-| Bốn lớp xe, đi thẳng, suspected red-light | S3 §1 | Dùng làm phạm vi pilot thay danh mục mọi vi phạm |
+| Bốn lớp xe, đi thẳng, suspected red-light | S3 §1 | Dùng làm phạm vi pilot thay danh mục mọi vi phạm; bản 1.1 mở rộng thành sáu lớp xe theo quyết định của chủ dự án (21/11/2026) |
 | Ba nhãn và khoảng crossing/chuyển màu | S3 §2–5 | Đưa thành quy tắc xử lý và ca kiểm thử |
 | Signal mapping và cấu hình cảnh | S3, S2 | Quản lý version, transform và PTZ invalidation |
 | Evidence, VLM, ALPR, Legal RAG | S1, S2 | Tách kết luận quan sát và quyết định pháp lý; ALPR/RAG là nhánh mở rộng pilot |

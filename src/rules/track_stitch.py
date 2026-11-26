@@ -3,7 +3,7 @@
 Only inside a continuous video (no quality gap between the two pieces) and only near a stop line, where an
 ID switch breaks the crossing evidence. A piece B continues piece A when:
 * B starts after A ends, within max_gap_s, with no quality gap in between;
-* same class family (car/truck/bus are one family: the detector flips between them; motorcycle is its own);
+* same class family (car/truck/bus/pickup/minibus are one family: the detector flips between them; motorcycle is its own);
 * A's last reference point is within near_line_px of a stop line;
 * B's first reference point is within max(min_px, ratio * A's height) of where A's recent motion predicts it;
 * the box heights are within height_ratio of each other.
@@ -12,7 +12,7 @@ The merged track keeps A's id; every join is reported so it can be reviewed.
 """
 from dataclasses import dataclass, replace
 
-FAMILY = {"car": "4w", "truck": "4w", "bus": "4w", "motorcycle": "2w"}
+FAMILY = {"car": "4w", "truck": "4w", "bus": "4w", "pickup": "4w", "minibus": "4w", "motorcycle": "2w"}
 
 
 @dataclass

@@ -51,19 +51,39 @@ Lớp mới: 0 car, 1 motorcycle, 2 bus, 3 truck, 4 pickup, 5 minibus. Quy ướ
 
 Chi tiết ở `data/vn_youtube_train_pool_20261116/LABELING_RULES.md`.
 
-1. **Xong:** map lại nhãn truck của MIO-TCD theo lớp gốc (`scripts/remap_mio_6class_20261124.py`):
-   - pickup_truck → pickup (25.237 khung train), work_van → minibus (5.252);
-   - chỉ 3 khung không ghép được.
-2. **Xong:** thêm 355 ảnh minibus/van đã QA từ UA-DETRAC và HeteroTraffic (`scripts/build_vehicle_minibus_add_20261122.py`).
-3. **Đang làm:** QA 300 khung truck của bộ HCMC (`scripts/hcmc_truck_survey_20261125.py`). Bộ này vẫn lẫn pickup và minibus.
-   - Gợi ý của CLIP chỉ đúng khoảng 73% (pickup 58%), không dùng để gán nhãn tự động.
-4. **Chưa làm:**
-   - Gán lại khoảng 12.000 khung truck của HCMC.
-   - Đổi 49 khung xe 16 chỗ VN từ truck sang minibus.
-   - Sửa mọi chỗ đang giả định 4 lớp: `NAMES`, nhóm lớp khi nối vết, luật, cấu hình tracking.
-   - Tìm tập test để map lại.
-   - Train trên Kaggle với công thức của v8s.
-   - Đánh giá recall theo lớp.
+Trạng thái ngày 26/11/2026:
+
+1. **Xong: nhãn MIO-TCD.** Map lại truck theo lớp gốc trên bản nguyên khung Vehicle363 (train/val/test), bằng `scripts/remap_mio_6class_20261124.py`.
+   - pickup_truck → pickup, work_van → minibus.
+   - Không còn khung nào không ghép được.
+2. **Xong: 355 ảnh minibus/van bổ sung** từ UA-DETRAC và HeteroTraffic, đã QA (`scripts/build_vehicle_minibus_add_20261122.py`).
+3. **Xong: QA 300 khung truck HCMC.** 97% khung nhìn rõ là truck thật, nên **giữ nguyên nhãn HCMC**.
+   - CLIP chỉ đúng 72%, không dùng để gán nhãn.
+4. **Xong: bộ VN 100 ảnh.** QA 87 khung truck: 39 minibus, 3 pickup, 31 truck, 14 làm mờ (`scripts/build_vehicle_vn_pool_6class_20261125.py`).
+5. **Xong: code chuyển sang 6 lớp.**
+   - Pipeline nhận bảng lớp của checkpoint, chỉ chấp nhận bảng 4 lớp cũ hoặc 6 lớp.
+   - Đã cập nhật luật, tracking, nối track và JSON schema.
+   - Có test đi kèm.
+6. **Đang chạy: train trên Kaggle.** Notebook `config/kaggle/yolov8s_vehicle_6class_20261126/train.py`, khởi tạo từ v8s, theo công thức gốc, train 10 h.
+   - Dev = val gốc. Tập test gốc **không** tải lên, chỉ mở một lần sau khi chốt model.
+7. **Đánh giá:** dùng `scripts/eval_vehicle_6class_20261126.py`, đo recall theo §19.2 trên tập test gốc và tập camera VN (`scripts/build_vn_camera_test_6class_20261126.py`, 73 ảnh). Mốc của v8s 4 lớp ở ảnh 960:
+
+   | Lớp | Test gốc | Camera VN |
+   |---|---|---|
+   | car | 91,8% | 94,1% |
+   | motorcycle | 88,0% | 87,4% |
+   | bus | 82,9% | 100% (8 khung) |
+   | truck | 90,8% | 83,3% |
+   | pickup | 0% | 0% |
+   | minibus | 0% | — |
+
+   - Precision trên tập test bị thấp hơn thực tế vì nhãn HCMC sót nhiều xe (đã xem mẫu ngày 26/11).
+8. **Chưa làm:**
+   - Chọn model trên dev, rồi chạy test một lần.
+   - Tạo cấu hình tracking mới (SHA-256 của model mới) và chạy lại pipeline.
+   - Lọc khung truck HCMC mà model mới đoán là pickup/minibus để QA.
+
+**Thời gian nguồn (§9.1):** từ 26/11, pipeline lấy thời gian khung từ PTS của decoder, không dùng FPS danh nghĩa. Video iHanoi quay màn hình có khung lệch tới ~0,2 s so với FPS danh nghĩa. Manifest ghi `timebase`. Kết quả pilot (5/8 vụ, 0 báo nhầm) đo bằng cách cũ, cần chạy lại để xác nhận.
 
 ## Dữ liệu và trọng số
 

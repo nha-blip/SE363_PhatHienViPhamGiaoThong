@@ -22,6 +22,14 @@ from src.tracking.yolo_adapter import YoloAdapter
 
 ROOT = Path(__file__).resolve().parents[1]
 NAMES = {0: "car", 1: "motorcycle", 2: "bus", 3: "truck"}
+NAMES_6 = {**NAMES, 4: "pickup", 5: "minibus"}  # 6-class taxonomy, spec v1.1 §15.3
+
+
+def detector_names(model_names):
+    """The checkpoint's own class table, accepted only if it is the old 4-class or the spec 6-class taxonomy (FR-06)."""
+    if model_names not in (NAMES, NAMES_6):
+        raise ValueError(f"Unexpected model namespace: {model_names}")
+    return dict(model_names)
 
 
 def write_json(path, value):

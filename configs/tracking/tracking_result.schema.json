@@ -78,7 +78,9 @@
               "car",
               "motorcycle",
               "bus",
-              "truck"
+              "truck",
+              "pickup",
+              "minibus"
             ]
           },
           "track_id": {
