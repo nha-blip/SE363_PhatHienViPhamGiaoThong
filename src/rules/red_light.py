@@ -57,6 +57,7 @@ class ApproachResult:
     assessment: str = None
     crossings: list = field(default_factory=list)
     uncertainty_reasons: list = field(default_factory=list)
+    review_required: bool = False  # set by track_stitch.flag_stitched_crossings (spec §17)
 
 
 def reference(bbox, mode):

@@ -6,6 +6,7 @@ class (predictions of c matched to a GT of c / all predictions of c) and the con
 Predictions are compared by class NAME, so a 4-class checkpoint can be scored on 6-class labels (it can never be right on
 pickup/minibus); --collapse4 maps pickup/minibus -> truck on both sides for a like-for-like 4-class comparison.
 Usage: eval_vehicle_6class_20261126.py --weights W --images DIR --labels DIR [--imgsz 960] [--conf 0.25] --out result.json
+  Lights: add --names red,yellow,green,off (label ids follow that order; spec: off is reported but not in the 95% target).
   Vehicle363 test: --images data/YOLO363_training_working/Vehicle363-v1/images/test
                    --labels data/Vehicle363_6class_labels_fullframe_20261125/test
 """
@@ -53,18 +54,19 @@ def main():
     parser.add_argument("--weights", required=True); parser.add_argument("--images", required=True); parser.add_argument("--labels", required=True)
     parser.add_argument("--imgsz", type=int, default=960); parser.add_argument("--conf", type=float, default=0.25)
     parser.add_argument("--out", required=True); parser.add_argument("--device", default="0")
+    parser.add_argument("--names", default=",".join(NAMES), help="label class names in id order")
     a = parser.parse_args()
     out = Path(a.out)
     if out.exists():
         raise FileExistsError(out)
     from ultralytics import YOLO
     model = YOLO(a.weights)
-    rows = []
+    rows, names = [], a.names.split(",")
     # a directory source is read lazily; a list of paths makes ultralytics open every image up front (MemoryError on 21k)
     for r in model.predict(str(Path(a.images)), imgsz=a.imgsz, conf=a.conf, device=a.device, stream=True, verbose=False, batch=8):
         h, w = r.orig_shape
         g_cls, g_boxes = read_labels(Path(a.labels) / f"{Path(r.path).stem}.txt", w, h)
-        rows.append(([NAMES[c] for c in g_cls], g_boxes, [model.names[int(c)] for c in r.boxes.cls.tolist()], r.boxes.xyxy.cpu().numpy().reshape(-1, 4)))
+        rows.append(([names[c] for c in g_cls], g_boxes, [model.names[int(c)] for c in r.boxes.cls.tolist()], r.boxes.xyxy.cpu().numpy().reshape(-1, 4)))
     result = {"weights": a.weights, "images": a.images, "labels": a.labels, "n_images": len(rows), "imgsz": a.imgsz, "conf": a.conf,
               "six_class": score(rows), "collapsed_4class": score(rows, collapse=True)}
     out.parent.mkdir(parents=True, exist_ok=True)

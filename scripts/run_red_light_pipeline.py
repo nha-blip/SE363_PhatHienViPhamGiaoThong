@@ -24,7 +24,7 @@ from light_phase_extract_detect_20261114 import CLIPS, SEQUENCES  # noqa: E402
 from build_roi_classifier_detections import a_in_roi, classify, cut, grow  # noqa: E402
 from scripts.run_tracking_pilot import detector_names  # noqa: E402
 from src.rules.red_light import RuleSettings, TrackPoint, evaluate_scene  # noqa: E402
-from src.rules.track_stitch import StitchSettings, stitch_tracks  # noqa: E402
+from src.rules.track_stitch import StitchSettings, flag_stitched_crossings, stitch_tracks  # noqa: E402
 from src.scene.config import load_active  # noqa: E402
 from src.signal.lamp_position import read_by_position  # noqa: E402
 from src.signal.phase_voting import PhaseVoter, RoiHeadAssociator, signal_intervals  # noqa: E402
@@ -115,7 +115,7 @@ REFERENCE = {}
 def assess(points, config, intervals, gap_times):
     """Stitch ID switches at the stop lines (src.rules.track_stitch), then apply the red-light rules."""
     stitched, joins = stitch_tracks(points, [a["stop_line"] for a in config["approaches"]], gap_times, StitchSettings())
-    return evaluate_scene(stitched, config, intervals, RuleSettings()), joins, stitched
+    return flag_stitched_crossings(evaluate_scene(stitched, config, intervals, RuleSettings()), joins), joins, stitched
 
 
 def write_overlay(path, rows, timeline, config, stitched, verdict, ref_w, ref_h):
@@ -224,7 +224,8 @@ def main():
     verdict = {r.track_id: r.assessment for r in results if r.assessment}
     write_overlay(out_dir / "qa_overlay.mp4", [(t, image) for t, image, _ in rows], timeline, config, stitched, verdict, ref_w, ref_h)
     events = [{"approach_id": r.approach_id, "track_id": r.track_id, "class": r.cls, "t_first": r.t_first, "t_last": r.t_last,
-               "scope_status": r.scope_status, "assessment": r.assessment, "crossings": r.crossings, "uncertainty_reasons": r.uncertainty_reasons}
+               "scope_status": r.scope_status, "assessment": r.assessment, "crossings": r.crossings, "uncertainty_reasons": r.uncertainty_reasons,
+               "review_required": r.review_required}
               for r in results]
     manifest = {"scene_config_id": config["scene_config_id"], "scene_config_sha256": sha256(a.scene_config), "source": str(CLIPS.get(config["camera_id"]) or SEQUENCES[config["camera_id"]]),
                 "sample_fps": SAMPLE_FPS, "timebase": TIMEBASE.get(config["camera_id"]), "frames": len(all_frames), "quality_gaps": len(gaps), "tracker_bounds_events": len(bounded.events), "tracking_config": str(TRACK_CONFIG),

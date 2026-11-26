@@ -491,7 +491,7 @@ Baseline phần cứng trong tài liệu là RTX 3060 12 GB. Đề xuất VLM co
 | Chất lượng thấp nhưng vẫn có cảnh | Gắn cờ, không tự coi không có xe/vi phạm |
 | Camera đổi góc/zoom | Vô hiệu SceneConfig liên quan đến khi kiểm tra lại |
 | Detector OOM | Giảm tải theo profile dự phòng đã benchmark hoặc tạm dừng nguồn, ghi gap |
-| Track mất/đổi ID gần vạch | Đánh dấu bất định, không nối bằng suy đoán |
+| Track mất/đổi ID gần vạch | Đánh dấu bất định. Bản 1.1: được nối có điều kiện (≤0,6 s, gần vạch, cùng nhóm xe, không qua khoảng mất frame) để không mất bằng chứng, nhưng mọi crossing chạm khoảng nối mang `review_required` và lý do, không được coi là kết luận chắc chắn khi chưa có người xem |
 | VLM timeout | Giữ evidence, retry giới hạn, cho người xem xử lý |
 | Kafka tạm lỗi | Ghi hàng đợi bền vững cục bộ có giới hạn và phát lại khi phục hồi |
 | PostgreSQL tạm lỗi | Giữ spool bền vững, không báo hồ sơ đã lưu thành công |

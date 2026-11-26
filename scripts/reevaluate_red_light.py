@@ -49,7 +49,8 @@ def main():
     out_dir = OUT / "rules_rerun" / config["scene_config_id"].replace(":", "_")
     out_dir.mkdir(parents=True, exist_ok=False)
     events = [{"approach_id": r.approach_id, "track_id": r.track_id, "class": r.cls, "t_first": r.t_first, "t_last": r.t_last,
-               "scope_status": r.scope_status, "assessment": r.assessment, "crossings": r.crossings, "uncertainty_reasons": r.uncertainty_reasons}
+               "scope_status": r.scope_status, "assessment": r.assessment, "crossings": r.crossings, "uncertainty_reasons": r.uncertainty_reasons,
+               "review_required": r.review_required}
               for r in results]
     manifest = {"scene_config_id": config["scene_config_id"], "scene_config_sha256": sha256(a.scene_config), "rules_rerun_of": str(a.run.resolve().relative_to(ROOT.resolve())),
                 "source_run_manifest": old_manifest, "created_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),

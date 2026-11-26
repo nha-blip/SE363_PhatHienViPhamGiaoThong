@@ -9,6 +9,9 @@ ID switch breaks the crossing evidence. A piece B continues piece A when:
 * the box heights are within height_ratio of each other.
 Matches are made greedily by distance; each piece joins at most one predecessor and one successor.
 The merged track keeps A's id; every join is reported so it can be reviewed.
+Spec §17 (owner 26/11/2026): a join is an inference, not an observation. flag_stitched_crossings() marks every crossing
+whose interval touches a join as review_required; the assessment is kept (recall is not lost) but it is not a confirmed
+conclusion until a person checks it.
 """
 from dataclasses import dataclass, replace
 
@@ -78,13 +81,14 @@ def stitch_tracks(points, stop_lines, gap_times=(), settings=StitchSettings()):
             bx, by = _bottom(first)
             distance = ((bx - predicted[0]) ** 2 + (by - predicted[1]) ** 2) ** 0.5
             if distance <= max(settings.min_px, settings.ratio * height_a):
-                candidates.append((distance, a_id, b_id, gap))
+                candidates.append((distance, a_id, b_id, gap, end.t, first.t))
     successor, predecessor, joins = {}, {}, []
-    for distance, a_id, b_id, gap in sorted(candidates):
+    for distance, a_id, b_id, gap, t_end, t_start in sorted(candidates):
         if a_id in successor or b_id in predecessor:
             continue
         successor[a_id], predecessor[b_id] = b_id, a_id
-        joins.append({"kept_id": None, "from_id": a_id, "to_id": b_id, "gap_s": round(gap, 3), "distance_px": round(distance, 1)})
+        joins.append({"kept_id": None, "from_id": a_id, "to_id": b_id, "gap_s": round(gap, 3), "distance_px": round(distance, 1),
+                      "t_from_end": round(t_end, 3), "t_to_start": round(t_start, 3)})
     root = {}
     for track_id in tracks:
         r = track_id
@@ -95,3 +99,21 @@ def stitch_tracks(points, stop_lines, gap_times=(), settings=StitchSettings()):
         j["kept_id"] = root[j["from_id"]]
     out = [replace(p, track_id=root[p.track_id]) if root[p.track_id] != p.track_id else p for p in points]
     return out, joins
+
+
+STITCH_REVIEW_REASON = "crossing spans an ID switch joined by track stitching (spec §17): needs human review"
+
+
+def flag_stitched_crossings(results, joins, margin_s=0.2):
+    """Mark crossings of stitched tracks whose [t_min, t_max] overlaps a join window [t_from_end, t_to_start] +- margin."""
+    windows = {}
+    for j in joins:
+        windows.setdefault(j["kept_id"], []).append((j["t_from_end"] - margin_s, j["t_to_start"] + margin_s))
+    for r in results:
+        for c in r.crossings:
+            if any(c["t_min"] <= hi and lo <= c["t_max"] for lo, hi in windows.get(r.track_id, [])):
+                c["review_required"] = True
+                r.review_required = True
+                if STITCH_REVIEW_REASON not in r.uncertainty_reasons:
+                    r.uncertainty_reasons.append(STITCH_REVIEW_REASON)
+    return results

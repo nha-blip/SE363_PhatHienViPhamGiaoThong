@@ -1,6 +1,6 @@
 """Track stitching at the stop line (src/rules/track_stitch.py)."""
 from src.rules.red_light import TrackPoint, evaluate_scene
-from src.rules.track_stitch import stitch_tracks
+from src.rules.track_stitch import STITCH_REVIEW_REASON, flag_stitched_crossings, stitch_tracks
 
 LINE = [[0, 400], [1280, 400]]
 
@@ -13,7 +13,7 @@ def test_id_switch_at_the_line_is_joined():
     a = piece(1, 0.0, [560, 520, 480, 440, 420])          # lost 20 px before the line
     b = piece(2, 0.6, [380, 340, 300, 260, 220])          # continues near the predicted place (mean speed 350 px/s -> 30 px off)
     points, joins = stitch_tracks(a + b, [LINE])
-    assert joins == [{"kept_id": 1, "from_id": 1, "to_id": 2, "gap_s": 0.2, "distance_px": 30.0}]
+    assert joins == [{"kept_id": 1, "from_id": 1, "to_id": 2, "gap_s": 0.2, "distance_px": 30.0, "t_from_end": 0.4, "t_to_start": 0.6}]
     assert {p.track_id for p in points} == {1}
 
 
@@ -24,8 +24,19 @@ def test_id_switch_makes_the_crossing_visible_to_the_rules():
               "approaches": [{"approach_id": "A1", "approach_roi": [[0, 400], [1280, 400], [1280, 720], [0, 720]],
                               "observation_roi": [[0, 0], [1280, 0], [1280, 720], [0, 720]], "stop_line": LINE, "direction": [0, -1]}]}
     intervals = {"S1": [{"kind": "observed", "state": "red", "t_start": 0, "t_end": 10}]}
-    stitched, _ = stitch_tracks(a + b, [LINE])
-    assert [r.assessment for r in evaluate_scene(stitched, config, intervals)] == ["red_light_crossing"]
+    stitched, joins = stitch_tracks(a + b, [LINE])
+    results = flag_stitched_crossings(evaluate_scene(stitched, config, intervals), joins)
+    # spec §17: the crossing is still reported (recall kept) but only as a review case, not a confirmed conclusion
+    assert [r.assessment for r in results] == ["red_light_crossing"]
+    assert results[0].review_required and results[0].crossings[0]["review_required"]
+    assert STITCH_REVIEW_REASON in results[0].uncertainty_reasons
+
+
+def test_crossing_away_from_the_join_is_not_flagged():
+    from src.rules.red_light import ApproachResult
+    r = ApproachResult("A1", 1, "car", 0.0, 5.0, crossings=[{"t_min": 3.0, "t_max": 3.2}])
+    flag_stitched_crossings([r], [{"kept_id": 1, "t_from_end": 0.4, "t_to_start": 0.6}])
+    assert not r.review_required and "review_required" not in r.crossings[0]
 
 
 def test_not_joined_far_from_the_line_or_after_a_long_gap_or_other_class_or_quality_gap():
